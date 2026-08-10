@@ -100,13 +100,17 @@ jobs:
         id: timestamp
         run: echo "value=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
+      - name: Get short commit SHA
+        id: short-sha
+        run: echo "value=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
       - name: Build and push Docker image
         id: build-push
         uses: docker/build-push-action@v7
         with:
           context: .
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.short-sha.outputs.value }}
           labels: |
             org.opencontainers.image.created=${{ steps.timestamp.outputs.value }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -115,7 +119,7 @@ jobs:
       - name: Export image metadata
         id: image-meta
         env:
-          PRIMARY_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+          PRIMARY_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.short-sha.outputs.value }}
           DIGEST: ${{ steps.build-push.outputs.digest }}
         run: |
           set -euo pipefail
