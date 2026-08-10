@@ -6,7 +6,6 @@
 #         environment: dev
 #         image_tag: ghcr.io/org/repo:sha-abc123
 #         image_digest: sha256:...
-#         source_branch: feature/demo
 #       secrets:
 #         slack_webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
 # ============================================================
@@ -27,11 +26,13 @@ on:
       image_digest:
         description: 'Image content digest sha256:... (for pinned version tracking)'
         type: string
-        required: true
-      source_branch:
-        description: 'Source branch name from the caller workflow'
+        required: false
+        default: ''
+      deploy_url_override:
+        description: 'Override default deploy URL (for debugging)'
         type: string
-        required: true
+        required: false
+        default: ''
 
     # ── Secrets (must be explicitly passed by caller) ─────────
     secrets:
@@ -45,18 +46,13 @@ on:
         description: 'Deployment image tag pushed to the registry'
         value: ${{ jobs.deploy.outputs.deploy_tag }}
 
-permissions:
-  contents: read
-  packages: write
-
 jobs:
   deploy:
     name: 'Deploy to ${{ inputs.environment }}'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     # uat environment requires manual reviewer approval
     environment:
-      name: ${{ inputs.environment }}
+      name: ${{ inputs.environment == 'uat' && 'uat' || 'dev' }}
 
     outputs:
       deploy_tag: ${{ steps.deploy.outputs.deploy_tag }}
@@ -64,7 +60,7 @@ jobs:
     steps:
       # ── Step 1:  ─────────────────────────────────
       - name: Log in to GHCR
-        uses: docker/login-action@v4
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -76,10 +72,9 @@ jobs:
           IMAGE_TAG: ${{ inputs.image_tag }}
           IMAGE_DIGEST: ${{ inputs.image_digest }}
           ENVIRONMENT: ${{ inputs.environment }}
-          SOURCE_BRANCH: ${{ inputs.source_branch }}
         run: |
           set -euo pipefail
-          BRANCH=$(echo "$SOURCE_BRANCH" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g; s/^-\+//; s/-\+$//')
+          BRANCH=$(echo "$GITHUB_REF_NAME" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g; s/^-\+//; s/-\+$//')
           DEPLOY_TAG="${IMAGE_TAG}-${ENVIRONMENT}-${BRANCH}-${{ github.run_id }}"
           docker pull "${IMAGE_TAG}@${IMAGE_DIGEST}"
           docker tag "${IMAGE_TAG}@${IMAGE_DIGEST}" "$DEPLOY_TAG"
@@ -92,7 +87,6 @@ jobs:
         env:
           RESULT: ${{ job.status }}
           ENVIRONMENT: ${{ inputs.environment }}
-          SOURCE_BRANCH: ${{ inputs.source_branch }}
           DEPLOY_TAG: ${{ steps.deploy.outputs.deploy_tag }}
           ACTOR: ${{ github.actor }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -104,7 +98,6 @@ jobs:
           | Field      | Value |
           |---|---|
           | Status     | $RESULT |
-          | Branch     | $SOURCE_BRANCH |
           | CD Run ID  | \`${{ github.run_id }}\` |
           | Deploy Tag | \`$DEPLOY_TAG\` |
           | Actor      | @$ACTOR |

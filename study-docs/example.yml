@@ -56,3 +56,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: echo deploy
+  
+==============
+      # cache 在 job 运行时会恢复到 runner 上使用。 但长期通常不是存在 runner 本地，而是存在 Actions cache backend
+
+      # - name: Setup Python with cache
+      #   uses: ./.github/actions/setup-python-cached
+      #   with:
+      #     python-version: ${{ env.PYTHON_VERSION_DEFAULT }}
+
+      # Replaced by container: image: python:3.11 
+      # - name: Setup Python with cache
+      #   uses: actions/setup-python@v5
+      #   with:
+      #     python-version: ${{ env.PYTHON_VERSION_DEFAULT }}
+      #     cache: pip
+      #     cache-dependency-path: requirements.txt
+      
