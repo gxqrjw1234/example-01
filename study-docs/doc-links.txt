@@ -1,6 +1,8 @@
 https://github.com/gxqrjw1234/example-01/actions/new
 
 
+https://github.com/NikKumar811/github-actions/blob/main/.github/workflows/python-ansible-scan.yml
+
 
 https://docs.github.com/en/actions/reference/workflows-and-actions/contexts?search-overlay-open=true&search-overlay-input=%E5%A6%82%E4%BD%95%E5%88%A4%E6%96%AD+workflow+%E7%9A%84%E4%B8%8A%E6%B8%B8workflow+%E6%98%AF%E5%90%A6%E6%88%90%E5%8A%9F&search-overlay-ask-ai=true
 
@@ -28,6 +30,8 @@ https://docs.github.com/zh/actions/reference/workflows-and-actions/workflow-synt
 https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md
 
 https://github.com/docker/metadata-action/blob/master/action.yml
+
+https://github.com/github/awesome-copilot/blob/main/instructions/github-actions-ci-cd-best-practices.instructions.md
 
 
 
