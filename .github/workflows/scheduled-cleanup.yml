@@ -11,7 +11,13 @@ on:
         description: 'Print actions only, do not execute (debug mode)'
         type: boolean
         default: true
-
+      target_env:
+        description: 'deployment environment'
+        type: choice
+        options: [dev, uat]
+        default: dev
+        required: true
+        
 env:
   DRY_RUN: ${{ inputs.dry_run || 'false' }}
 
