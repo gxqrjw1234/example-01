@@ -10,7 +10,7 @@
 #         slack_webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
 # ============================================================
 
-name: Module Deployment
+name: Deployment Module
 
 on:
   workflow_call:

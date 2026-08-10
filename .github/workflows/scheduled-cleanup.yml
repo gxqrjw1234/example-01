@@ -16,12 +16,12 @@ env:
   DRY_RUN: ${{ inputs.dry_run || 'false' }}
 
 jobs:
-  plan-cleanup:
-    name: 'Plan Cleanup'
+  debug-info:
+    name: 'Debug Info'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Print workflow command debug message
         run: echo "::debug::workflow_info job started"
@@ -81,7 +81,7 @@ jobs:
           printf '{"status":"ok","tool":"workflow-info"}\n' > coverage/summary.json
 
       - name: Upload debug report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: coverage/
@@ -104,7 +104,7 @@ jobs:
   housekeeping:
     name: 'Housekeeping'
     runs-on: ubuntu-latest
-    needs: plan-cleanup
+    needs: debug-info
     if: github.event_name == 'schedule' || inputs.dry_run == 'false'
 
     steps:
@@ -119,9 +119,7 @@ jobs:
   daily-report:
     name: 'Generate Daily Report'
     runs-on: ubuntu-latest
-    needs: [plan-cleanup, housekeeping]
-    if: always() && needs['plan-cleanup'].result == 'success'
-
+    needs: [debug-info, housekeeping]
     steps:
       - name: Generate report
         run: |

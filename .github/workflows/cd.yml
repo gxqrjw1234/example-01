@@ -69,7 +69,7 @@ jobs:
   # Job 2: Deploy to Dev
   # ────────────────────────────────────────────────────────────
   deploy-dev:
-    name: 'Deploy → Dev'
+    name: 'Deploy to Dev'
     needs: get-ci-image-info
     # needs 默认要求 get-ci-image-info 成功，这里只判断来源分支。
     if: github.event.workflow_run.head_branch == 'main' || startsWith(github.event.workflow_run.head_branch, 'feature/')
@@ -86,7 +86,7 @@ jobs:
   # Job 3: Deploy to UAT（需人工审批）
   # ────────────────────────────────────────────────────────────
   deploy-uat:
-    name: 'Deploy → UAT'
+    name: 'Deploy to UAT'
     needs: [get-ci-image-info, deploy-dev]
     # needs 默认要求 get-ci-image-info 和 deploy-dev 都成功，这里只判断 main 分支。
     if: github.event.workflow_run.head_branch == 'main'
