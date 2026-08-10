@@ -1,0 +1,131 @@
+# ============================================================
+# Reusable Build Workflow — Python POC 构建与镜像发布
+# ============================================================
+# Called by ci-feature.yml and ci-main.yml.
+# ============================================================
+
+name: Reusable Build
+
+on:
+  workflow_call:
+    inputs:
+      python_version:
+        description: 'Python version used to build the application'
+        type: string
+        required: false
+        default: '3.11'
+      artifact_retention_days:
+        description: 'Number of days to retain the build artifact'
+        type: number
+        required: false
+        default: 7
+    outputs:
+      image_tag:
+        description: 'Full GHCR image tag'
+        value: ${{ jobs.build-push-image.outputs.image_tag }}
+      image_digest:
+        description: 'Immutable image digest'
+        value: ${{ jobs.build-push-image.outputs.image_digest }}
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-source-code:
+    name: 'Build Python POC'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    container:
+      image: python:${{ inputs.python_version }}
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Build application
+        run: python src/build.py
+        env:
+          APP_ENV: production
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist-${{ github.sha }}
+          path: dist/
+          retention-days: ${{ inputs.artifact_retention_days }}
+          if-no-files-found: error
+
+  build-push-image:
+    name: 'Build & Push Docker Image'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [build-source-code]
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image_tag: ${{ steps.image-meta.outputs.image_tag }}
+      image_digest: ${{ steps.image-meta.outputs.image_digest }}
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: dist-${{ github.sha }}
+          path: dist/
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get build timestamp
+        id: timestamp
+        run: echo "value=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push Docker image
+        id: build-push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.created=${{ steps.timestamp.outputs.value }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          platforms: linux/amd64
+
+      - name: Export image metadata
+        id: image-meta
+        env:
+          PRIMARY_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+          DIGEST: ${{ steps.build-push.outputs.digest }}
+        run: |
+          set -euo pipefail
+
+          [[ "$DIGEST" == sha256:* ]] || { echo "Unexpected image digest: $DIGEST"; exit 1; }
+
+          echo "image_tag=$PRIMARY_TAG" >> "$GITHUB_OUTPUT"
+          echo "image_digest=$DIGEST" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "IMAGE_TAG=$PRIMARY_TAG"
+            echo "IMAGE_DIGEST=$DIGEST"
+          } >> "$GITHUB_STEP_SUMMARY"

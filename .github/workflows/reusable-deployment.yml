@@ -1,0 +1,122 @@
+# ============================================================
+# Reusable Deployment Workflow — Dev/UAT 镜像部署
+# ============================================================
+# Example caller:
+#   jobs:
+#     deploy-dev:
+#       uses: ./.github/workflows/reusable-deployment.yml
+#       with:
+#         environment: dev
+#         image_tag: ghcr.io/org/repo:sha-abc123
+#         image_digest: sha256:...
+#         source_branch: feature/demo
+#       secrets:
+#         slack_webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+# ============================================================
+
+name: Reusable Deployment
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Target deployment environment (dev / uat)'
+        type: string
+        required: true
+      image_tag:
+        description: 'Full image tag, e.g. ghcr.io/org/repo:sha-abc123'
+        type: string
+        required: true
+      image_digest:
+        description: 'Image content digest sha256:... (for pinned version tracking)'
+        type: string
+        required: true
+      source_branch:
+        description: 'Source branch name from the caller workflow'
+        type: string
+        required: true
+    secrets:
+      slack_webhook:
+        description: 'Slack notification webhook URL'
+        required: false
+    outputs:
+      deploy_tag:
+        description: 'Deployment image tag pushed to the registry'
+        value: ${{ jobs.deploy.outputs.deploy_tag }}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  deploy:
+    name: 'Deploy to ${{ inputs.environment }}'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # uat environment requires manual reviewer approval
+    environment:
+      name: ${{ inputs.environment }}
+
+    outputs:
+      deploy_tag: ${{ steps.deploy.outputs.deploy_tag }}
+
+    steps:
+      # ── Step 1: Log in to GHCR ─────────────────
+      - name: Log in to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag and push deployment image
+        id: deploy
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          IMAGE_DIGEST: ${{ inputs.image_digest }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          SOURCE_BRANCH: ${{ inputs.source_branch }}
+        run: |
+          set -euo pipefail
+          BRANCH=$(echo "$SOURCE_BRANCH" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g; s/^\-\+//; s/\-\+$//')
+          DEPLOY_TAG="${IMAGE_TAG}-${ENVIRONMENT}-${BRANCH}-${{ github.run_id }}"
+          docker pull "${IMAGE_TAG}@${IMAGE_DIGEST}"
+          docker tag "${IMAGE_TAG}@${IMAGE_DIGEST}" "$DEPLOY_TAG"
+          docker push "$DEPLOY_TAG"
+          echo "deploy_tag=$DEPLOY_TAG" >> "$GITHUB_OUTPUT"
+
+      # ── Step 2: Write deployment summary ──────
+      - name: Write deployment summary
+        if: always()
+        env:
+          RESULT: ${{ job.status }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          SOURCE_BRANCH: ${{ inputs.source_branch }}
+          DEPLOY_TAG: ${{ steps.deploy.outputs.deploy_tag }}
+          ACTOR: ${{ github.actor }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          STATUS_LABEL=$([ "$RESULT" = "success" ] && echo "PASS" || echo "FAIL")
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          ## Deploy to $ENVIRONMENT -- $STATUS_LABEL
+
+          | Field      | Value |
+          |---|---|
+          | Status     | $RESULT |
+          | Branch     | $SOURCE_BRANCH |
+          | CD Run ID  | \`${{ github.run_id }}\` |
+          | Deploy Tag | \`$DEPLOY_TAG\` |
+          | Actor      | @$ACTOR |
+          | Run        | $RUN_URL |
+          EOF
+
+      # ── Step 3: Notify Slack ───────────────────
+      - name: Notify Slack
+        if: always()
+        env:
+          SLACK_WEBHOOK: ${{ secrets.slack_webhook }}
+          RESULT: ${{ job.status }}
+          ENVIRONMENT: ${{ inputs.environment }}
+          DEPLOY_TAG: ${{ steps.deploy.outputs.deploy_tag }}
+        run: |
+          echo "Slack notification: deploy $RESULT to $ENVIRONMENT (tag: $DEPLOY_TAG)"
