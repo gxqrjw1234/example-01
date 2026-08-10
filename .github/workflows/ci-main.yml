@@ -45,7 +45,7 @@ jobs:
       packages: write
 
   deploy-dev:
-    name: 'Deploy to Dev'
+    # name: 'Deploy to Dev'
     needs: build
     # if: github.ref_name == 'main'
     uses: ./.github/workflows/reusable-deployment.yml
@@ -61,7 +61,7 @@ jobs:
       slack_webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
 
   deploy-uat:
-    name: 'Deploy to UAT'
+    # name: 'Deploy to UAT'
     needs: [build, deploy-dev]
     if: github.ref_name == 'main'
     uses: ./.github/workflows/reusable-deployment.yml
