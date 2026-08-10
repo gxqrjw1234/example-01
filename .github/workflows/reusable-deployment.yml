@@ -68,7 +68,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Tag and push deployment image
         id: deploy
         env:
@@ -84,7 +83,6 @@ jobs:
           docker tag "${IMAGE_TAG}@${IMAGE_DIGEST}" "$DEPLOY_TAG"
           docker push "$DEPLOY_TAG"
           echo "deploy_tag=$DEPLOY_TAG" >> "$GITHUB_OUTPUT"
-
       # ── Step 2: Write deployment summary ──────
       - name: Write deployment summary
         if: always()
@@ -99,7 +97,6 @@ jobs:
           STATUS_LABEL=$([ "$RESULT" = "success" ] && echo "PASS" || echo "FAIL")
           cat >> "$GITHUB_STEP_SUMMARY" <<EOF
           ## Deploy to $ENVIRONMENT -- $STATUS_LABEL
-
           | Field      | Value |
           |---|---|
           | Status     | $RESULT |
