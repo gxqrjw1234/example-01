@@ -1,0 +1,18 @@
+name: 'Example Docker Action'
+description: '在固定 Alpine 容器中统计文件数量'
+
+inputs:
+  directory:
+    description: '要统计的目录'
+    required: false
+    default: '.'
+
+outputs:
+  file-count:
+    description: '文件数量'
+
+runs:
+  using: docker
+  image: Dockerfile
+  args:
+    - ${{ inputs.directory }}

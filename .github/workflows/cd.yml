@@ -1,0 +1,110 @@
+﻿# ============================================================
+# CD Workflow — Python POC 持续部署
+# ============================================================
+# get-ci-image-info：
+#   - 只在 CI 成功的 workflow_run 执行
+#
+# deploy-dev：
+#   - CI workflow 成功
+#   - 来源分支为 main 或 feature/*
+#
+# deploy-uat：
+#   - CI workflow 成功
+#   - 来源分支为 main
+#
+# 执行流程：
+#   feature/* + CI success → Dev
+#   main + CI success → Dev → UAT
+# ============================================================
+
+name: CD
+
+on:
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
+    branches:
+      - 'feature/**'
+      - 'main'
+
+permissions: write-all
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}      # e.g. org/repo
+  CI_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+jobs:
+  get-ci-image-info:
+    name: 'Load Image Metadata'
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
+    outputs:
+      image_tag: ${{ steps.extract-meta.outputs.image_tag }}
+      image_digest: ${{ steps.extract-meta.outputs.image_digest }}
+
+    steps:
+      - name: Download image metadata from CI
+        uses: actions/download-artifact@v4
+        with:
+          name: image-meta-${{ env.CI_SHA }}
+          path: image-meta/
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+      - name: Export tag and digest from meta file
+        id: extract-meta
+        run: |
+          set -euo pipefail
+          source image-meta/meta.env
+
+          [[ "$IMAGE_TAG" == ghcr.io/${GITHUB_REPOSITORY}:sha-* ]] || { echo "Unexpected image tag: $IMAGE_TAG"; exit 1; }
+          [[ "$IMAGE_DIGEST" == sha256:* ]] || { echo "Unexpected image digest: $IMAGE_DIGEST"; exit 1; }
+
+          echo "image_tag=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+          echo "image_digest=$IMAGE_DIGEST" >> "$GITHUB_OUTPUT"
+
+  # ────────────────────────────────────────────────────────────
+  # Job 2: Deploy to Dev
+  # ────────────────────────────────────────────────────────────
+  deploy-dev:
+    name: 'Deploy → Dev'
+    needs: get-ci-image-info
+    # needs 默认要求 get-ci-image-info 成功，这里只判断来源分支。
+    if: github.event.workflow_run.head_branch == 'main' || startsWith(github.event.workflow_run.head_branch, 'feature/')
+    # 或者调用steps, run: ./deploy.sh dev
+    uses: ./.github/workflows/module-deployment.yml
+    with:
+      environment: dev
+      image_tag: ${{ needs['get-ci-image-info'].outputs.image_tag }}
+      image_digest: ${{ needs['get-ci-image-info'].outputs.image_digest }}
+    secrets:
+      slack_webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  # ────────────────────────────────────────────────────────────
+  # Job 3: Deploy to UAT（需人工审批）
+  # ────────────────────────────────────────────────────────────
+  deploy-uat:
+    name: 'Deploy → UAT'
+    needs: [get-ci-image-info, deploy-dev]
+    # needs 默认要求 get-ci-image-info 和 deploy-dev 都成功，这里只判断 main 分支。
+    if: github.event.workflow_run.head_branch == 'main'
+    uses: ./.github/workflows/module-deployment.yml
+    with:
+      environment: uat
+      image_tag: ${{ needs['get-ci-image-info'].outputs.image_tag }}
+      image_digest: ${{ needs['get-ci-image-info'].outputs.image_digest }}
+    secrets:
+      slack_webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+  notify-failure:
+    name: 'Notify Deployment Failure'
+    runs-on: ubuntu-latest
+    needs: [get-ci-image-info, deploy-dev, deploy-uat]
+    if: always() && failure()
+    steps:
+      - name: Send failure alert
+        run: |
+          echo "Sending deployment failure alert..."
+

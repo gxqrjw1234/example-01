@@ -1,0 +1,23 @@
+name: 'Example Composite Action'
+description: '使用 YAML 和 shell 封装多个固定步骤'
+
+inputs:
+  message:
+    description: '要输出的消息'
+    required: false
+    default: 'Hello from Composite Action'
+
+outputs:
+  result:
+    description: '处理结果'
+    value: ${{ steps.run.outputs.result }}
+
+runs:
+  using: composite
+  steps:
+    - name: Run fixed shell steps
+      id: run
+      shell: bash
+      run: |
+        echo "${{ inputs.message }}"
+        echo "result=composite-action-success" >> "$GITHUB_OUTPUT"

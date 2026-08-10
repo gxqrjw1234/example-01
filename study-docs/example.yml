@@ -1,0 +1,58 @@
+===============================
+steps:
+  ...
+  - name: Failing step
+    id: demo
+    run: exit 1
+  - name: The demo step has failed
+    if: ${{ failure() && steps.demo.conclusion == 'failure' }}
+===============================
+ deploy-dev:
+    name: 'Deploy → Dev'
+    needs: get-ci-image-info
+    if: |
+      # needs 默认要求 get-ci-image-info 成功，这里只判断来源分支。
+      # always() &&
+      # github.event_name == 'workflow_run' &&
+      # github.event.workflow_run.conclusion == 'success' &&
+      # needs['get-ci-image-info'].result == 'success' &&
+      (github.event.workflow_run.head_branch == 'main' || startsWith(github.event.workflow_run.head_branch, 'feature/'))
+    uses: ./.github/workflows/module-deployment.yml
+    with:
+      environment: dev
+      image_tag: ${{ needs['get-ci-image-info'].outputs.image_tag }}
+      image_digest: ${{ needs['get-ci-image-info'].outputs.image_digest }}
+    secrets:
+      slack_webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+===============================
+
+name: CD
+
+on:
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
+    branches:
+      - 'feature/**'
+      - 'main'
+
+  workflow_dispatch:
+    inputs:
+      target_env:
+        description: 'deployment environment'
+        type: choice
+        options: [dev, uat]
+        default: dev
+        required: true
+      ci_run_id:
+        description: 'CI workflow run ID to pull image metadata from (required for workflow_dispatch)'
+        type: string
+        required: true
+
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo deploy

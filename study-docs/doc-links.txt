@@ -1,0 +1,138 @@
+https://docs.github.com/en/actions/reference/workflows-and-actions/contexts?search-overlay-open=true&search-overlay-input=%E5%A6%82%E4%BD%95%E5%88%A4%E6%96%AD+workflow+%E7%9A%84%E4%B8%8A%E6%B8%B8workflow+%E6%98%AF%E5%90%A6%E6%88%90%E5%8A%9F&search-overlay-ask-ai=true
+
+https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#job-context
+
+https://rhysd.github.io/actionlint/
+
+
+https://docs.github.com/zh/actions/how-tos/deploy/deploy-to-third-party-platforms/amazon-elastic-container-service
+
+https://docs.github.com/zh/actions/how-tos/deploy/deploy-to-third-party-platforms/docker-to-azure-app-service
+
+https://docs.github.com/zh/actions/how-tos/deploy/deploy-to-third-party-platforms/azure-static-web-app
+
+https://docs.github.com/zh/actions/tutorials/publish-packages/publish-docker-images
+
+https://docs.github.com/zh/actions/tutorials/store-and-share-data
+
+https://docs.github.com/zh/actions/reference/workflows-and-actions/variables#default-environment-variables
+
+https://docs.github.com/zh/actions/how-tos/secure-your-work/security-harden-deployments/oidc-in-aws
+
+https://docs.github.com/zh/actions/reference/workflows-and-actions/workflow-syntax#permissions
+
+https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md
+
+https://github.com/docker/metadata-action/blob/master/action.yml
+
+
+
+aws-actions
+azure-actions
+docker 
+github actions
+
+https://github.com/actions
+
+
+https://docs.github.com/en/actions/get-started/understand-github-actions
+https://docs.github.com/zh/actions/tutorials
+
+https://github.com/sdras/awesome-actions#workflow-examples
+https://github.com/swinton/SpotHub/tree/master/.github/actions/spotify-playlist
+
+https://www.ruanyifeng.com/blog/2019/09/getting-started-with-github-actions.html
+https://github.com/marketplace?type=actions
+
+
+连接aws,azure的ACTION
+
+
+
+
+name: Terraform Apply
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: infra
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+
+      - name: Login Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Terraform init
+        run: terraform init
+
+      - name: Terraform plan
+        run: terraform plan -out=tfplan
+
+      - name: Terraform apply
+        run: terraform apply -auto-approve tfplan
+		
+==================
+steps:
+  - uses: actions/checkout@v4
+
+  - uses: actions/setup-python@v5
+    with:
+      python-version: '3.12'
+
+  - name: Install Ansible
+    run: |
+      python -m pip install --upgrade pip
+      pip install ansible ansible-lint
+      if [ -f requirements.yml ]; then
+        ansible-galaxy collection install -r requirements.yml
+      fi
+
+  - name: Lint
+    run: ansible-lint
+
+  - name: Syntax check
+    run: ansible-playbook --syntax-check -i inventory.ini deploy.yml
+
+  - name: Deploy
+    run: ansible-playbook -i inventory.ini deploy.yml
+
+	
+================
+steps:
+  - uses: actions/checkout@v4
+
+  - name: Run Ansible playbook
+    uses: dawidd6/action-ansible-playbook@v9
+    with:
+      playbook: deploy.yml
+      directory: ./
+      key: ${{ secrets.SSH_PRIVATE_KEY }}
+      inventory: |
+        [web]
+        web-01.example.com
+      options: |
+        --limit web
+        --verbose
+		

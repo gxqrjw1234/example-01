@@ -1,0 +1,133 @@
+name: Scheduled Maintenance
+
+on:
+
+  schedule:
+    - cron: '0 2 * * *'
+
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Print actions only, do not execute (debug mode)'
+        type: boolean
+        default: true
+
+env:
+  DRY_RUN: ${{ inputs.dry_run || 'false' }}
+
+jobs:
+  plan-cleanup:
+    name: 'Plan Cleanup'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Print workflow command debug message
+        run: echo "::debug::workflow_info job started"
+
+      - name: Dump github context
+        run: echo '${{ toJson(github) }}'
+
+      - name: Dump env context
+        run: echo '${{ toJson(env) }}'
+
+      - name: Dump job context
+        run: echo '${{ toJson(job) }}'
+
+      - name: Dump runner context
+        run: echo '${{ toJson(runner) }}'
+
+      - name: Dump steps context
+        run: echo '${{ toJson(steps) }}'
+
+      - name: Print built-in debug vars
+        run: |
+          echo "GITHUB_WORKFLOW=$GITHUB_WORKFLOW"
+          echo "GITHUB_RUN_ID=$GITHUB_RUN_ID"
+          echo "GITHUB_RUN_NUMBER=$GITHUB_RUN_NUMBER"
+          echo "GITHUB_JOB=$GITHUB_JOB"
+          echo "GITHUB_ACTION=$GITHUB_ACTION"
+          echo "GITHUB_ACTOR=$GITHUB_ACTOR"
+          echo "GITHUB_REPOSITORY=$GITHUB_REPOSITORY"
+          echo "GITHUB_EVENT_NAME=$GITHUB_EVENT_NAME"
+          echo "GITHUB_REF=$GITHUB_REF"
+          echo "GITHUB_REF_NAME=$GITHUB_REF_NAME"
+          echo "GITHUB_SHA=$GITHUB_SHA"
+          echo "GITHUB_WORKSPACE=$GITHUB_WORKSPACE"
+          echo "RUNNER_OS=$RUNNER_OS"
+          echo "RUNNER_ARCH=$RUNNER_ARCH"
+          echo "RUNNER_TEMP=$RUNNER_TEMP"
+          echo "RUNNER_DEBUG=$RUNNER_DEBUG"
+
+      - name: Print all env vars
+        run: env | sort
+
+      - name: Print PATH
+        run: echo "$PATH"
+
+      - name: List workspace files
+        run: ls -la "$GITHUB_WORKSPACE"
+
+      - name: Show disk usage
+        run: df -h
+
+      - name: Show current user
+        run: whoami && id
+
+      - name: Create debug coverage placeholder
+        run: |
+          mkdir -p coverage
+          printf '{"status":"ok","tool":"workflow-info"}\n' > coverage/summary.json
+
+      - name: Upload debug report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 2
+
+      - name: Write debug summary
+        if: always()
+        run: |
+          echo "## 调试信息" >> "$GITHUB_STEP_SUMMARY"
+          echo "| 项目 | 值 |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Workflow | $GITHUB_WORKFLOW |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Event | $GITHUB_EVENT_NAME |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Branch | $GITHUB_REF_NAME |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Commit SHA | $GITHUB_SHA |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Actor | $GITHUB_ACTOR |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Runner OS | $RUNNER_OS |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Runner Arch | $RUNNER_ARCH |" >> "$GITHUB_STEP_SUMMARY"
+
+  housekeeping:
+    name: 'Housekeeping'
+    runs-on: ubuntu-latest
+    needs: plan-cleanup
+    if: github.event_name == 'schedule' || inputs.dry_run == 'false'
+
+    steps:
+      - name: Delete expired untagged package versions
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo "dry run dummy step .."
+          else
+            echo "dummy step: deleting expired untagged package versions..."
+          fi
+
+  daily-report:
+    name: 'Generate Daily Report'
+    runs-on: ubuntu-latest
+    needs: [plan-cleanup, housekeeping]
+    if: always() && needs['plan-cleanup'].result == 'success'
+
+    steps:
+      - name: Generate report
+        run: |
+          echo "dummy step: generating daily report..."
+          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
+          | Dry Run    | ${{ inputs.dry_run || 'false' }} |
+          | Trigger    | ${{ github.event_name }} |
+          EOF
+

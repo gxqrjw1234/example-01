@@ -1,0 +1,16 @@
+name: 'Example JavaScript Action'
+description: '使用 Node.js 执行自定义逻辑'
+
+inputs:
+  message:
+    description: '要处理的消息'
+    required: false
+    default: 'Hello from JavaScript Action'
+
+outputs:
+  result:
+    description: 'Node.js 处理结果'
+
+runs:
+  using: node20
+  main: index.js
