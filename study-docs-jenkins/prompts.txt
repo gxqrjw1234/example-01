@@ -1,0 +1,8 @@
+你是JENKINS专家。我要学习jenkins.
+
+1. 分析study-docs-github-actions目录，在目录study-docs-jenkins下生成相应学习文档
+2. 尽量涵盖jenkins的所有知识点。
+3. 根据知识点生成对应的例子。例子尽量涵盖所有知识点
+4. 按照jenkins中级和高级知识点对例子分类
+5.每个例子一个文件，并生成相关说明。
+6. 按照最佳实践生成例子

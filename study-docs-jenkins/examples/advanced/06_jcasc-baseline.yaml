@@ -1,0 +1,46 @@
+# Jenkins Configuration as Code 学习基线
+# 仅作为结构示例；生产环境必须使用外部 Secret、HTTPS、企业身份和最小权限。
+# 通过 CASC_JENKINS_CONFIG 指向该文件，并使用与当前 Jenkins LTS/插件匹配的 JCasC 版本。
+
+jenkins:
+  systemMessage: "Managed by Configuration as Code; changes must be reviewed."
+  numExecutors: 0
+  mode: EXCLUSIVE
+  scmCheckoutRetryCount: 2
+  disableRememberMe: true
+  remotingSecurity:
+    enabled: true
+  securityRealm:
+    local:
+      allowsSignup: false
+      enableCaptcha: false
+      users:
+        - id: "${JENKINS_ADMIN_ID}"
+          password: "${JENKINS_ADMIN_PASSWORD}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+  crumbIssuer:
+    standard:
+      excludeClientIPFromCrumb: true
+
+unclassified:
+  location:
+    url: "${JENKINS_URL}"
+    adminAddress: "${JENKINS_ADMIN_EMAIL}"
+  globalLibraries:
+    libraries:
+      - name: "company-ci"
+        defaultVersion: "v3.4.0"
+        implicit: false
+        allowVersionOverride: false
+        retriever:
+          modernSCM:
+            scm:
+              git:
+                remote: "https://git.example.com/platform/company-ci.git"
+                traits:
+                  - "gitBranchDiscovery"
+
+# 说明：Credentials、GitHub App、LDAP/OIDC、邮件、Kubernetes Cloud 和 Job DSL
+# 需要当前插件提供的对应 JCasC schema。不要把真实密码、私钥或 Token 写入仓库。
