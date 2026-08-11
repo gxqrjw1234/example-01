@@ -1,5 +1,5 @@
 name: Scheduled Maintenance
-run-name: ${{ github.run_id }}
+run-name: schedule-${{ github.run_id }}
 
 on:
 

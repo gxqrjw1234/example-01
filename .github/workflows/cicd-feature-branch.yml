@@ -1,5 +1,5 @@
 name: CICD Feature branch
-run-name: ${{ github.run_id }}
+run-name: feature-branch-${{ github.run_id }}
 # run-name: ${{ github.run_number }}
 
 on:

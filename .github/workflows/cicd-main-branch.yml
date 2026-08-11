@@ -1,5 +1,5 @@
 name: CICD Main branch
-run-name: ${{ github.run_id }}
+run-name: main-branch-${{ github.run_id }}
 # run-name: ${{ github.run_number }}
 
 on:
