@@ -10,16 +10,21 @@ on:
       dry_run:
         description: 'Print actions only, do not execute (debug mode)'
         type: boolean
-        default: true
+        default: false
       target_env:
         description: 'deployment environment'
         type: choice
         options: [dev, uat]
         default: dev
         required: true
-        
+      deployment_name:
+        description: 'name of the deployment'
+        type: string
+        default: 'test'
+        required: true
+
 env:
-  DRY_RUN: ${{ inputs.dry_run || 'false' }}
+  DRY_RUN: ${{ inputs.dry_run || false }}
 
 permissions: write-all
 
