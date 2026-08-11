@@ -1,0 +1,68 @@
+name: CICD Feature branch
+run-name: feature-branch-${{ github.run_id }}
+# run-name: ${{ github.run_number }}
+
+on:
+  push:
+    branches:
+      - 'feature/**'
+    paths:
+      - '**.py'
+      - '**.yml'
+  # pull_request:
+  #   branches: [main]
+  #   paths:
+  #     - '**.py'
+  #     - '**.yml'
+  #   types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION_DEFAULT: '3.11'
+  ARTIFACT_RETENTION_DAYS: 7
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ci-cd-feature-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: 'Build and Push Feature Image'
+    # if: startsWith(github.ref_name, 'feature/')
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      python_version: '3.11'
+      artifact_retention_days: 7
+    permissions:
+      contents: read
+      packages: write
+
+  deploy-dev:
+    name: 'Deploy to Dev'
+    needs: build
+    # if: startsWith(github.ref_name, 'feature/')
+    uses: ./.github/workflows/reusable-deployment.yml
+    with:
+      environment: dev
+      image_tag: ${{ needs.build.outputs.image_tag }}
+      image_digest: ${{ needs.build.outputs.image_digest }}
+      source_branch: ${{ github.ref_name }}
+    permissions:
+      contents: read
+      packages: write
+    secrets:
+      slack_webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+
+  notify-failure:
+    name: 'Notify Pipeline Failure'
+    runs-on: ubuntu-latest
+    needs: [build, deploy-dev]
+    if: always() && failure()
+    steps:
+      - name: Send failure alert
+        run: echo "Sending pipeline failure alert..."

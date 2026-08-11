@@ -1,4 +1,5 @@
 name: Scheduled Maintenance
+run-name: schedule-${{ github.run_id }}
 
 on:
 
@@ -10,10 +11,23 @@ on:
       dry_run:
         description: 'Print actions only, do not execute (debug mode)'
         type: boolean
-        default: true
+        default: false
+      target_env:
+        description: 'deployment environment'
+        type: choice
+        options: [dev, uat]
+        default: dev
+        required: true
+      deployment_name:
+        description: 'name of the deployment'
+        type: string
+        default: 'test'
+        required: true
 
 env:
-  DRY_RUN: ${{ inputs.dry_run || 'false' }}
+  DRY_RUN: ${{ inputs.dry_run || false }}
+
+permissions: write-all
 
 jobs:
   debug-info:
@@ -40,6 +54,38 @@ jobs:
 
       - name: Dump steps context
         run: echo '${{ toJson(steps) }}'
+
+      - name: Dump vars context
+        run: echo '${{ toJson(vars) }}'
+
+      - name: Dump inputs context
+        run: echo '${{ toJson(inputs) }}'
+
+      - name: Dump strategy context
+        run: echo '${{ toJson(strategy) }}'
+
+      - name: Dump matrix context
+        run: echo '${{ toJson(matrix) }}'
+
+      - name: Dump needs context
+        run: echo '${{ toJson(needs) }}'
+
+      - name: Dump needs secrets
+        run: echo '${{ toJson(secrets) }}'
+
+
+      # Secret values must never be printed. This verifies availability only.
+      - name: Check secrets context safely
+        env:
+          GITHUB_TOKEN_CONFIGURED: ${{ secrets.GITHUB_TOKEN != '' }}
+          SLACK_WEBHOOK_CONFIGURED: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
+        run: |
+          echo "GITHUB_TOKEN_CONFIGURED=$GITHUB_TOKEN_CONFIGURED"
+          echo "SLACK_WEBHOOK_CONFIGURED=$SLACK_WEBHOOK_CONFIGURED"
+
+      # The jobs context is available only inside reusable workflows.
+      - name: Document jobs context availability
+        run: echo "jobs context is available only in reusable workflows"
 
       - name: Print built-in debug vars
         run: |
