@@ -29,6 +29,7 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  ARTIFACT_PREFIX: dist
   DOCKER_BUILD_RECORD_UPLOAD: false
 
 jobs:
@@ -39,11 +40,18 @@ jobs:
     container:
       image: python:${{ inputs.python_version }}
 
+    outputs:
+      short_sha: ${{ steps.short-sha.outputs.value }}
+
     steps:
       - name: Checkout source
         uses: actions/checkout@v7
         with:
           persist-credentials: false
+
+      - name: Get short commit SHA
+        id: short-sha
+        run: echo "value=${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
 
       - name: Build application
         run: python src/build.py
@@ -53,7 +61,7 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v7
         with:
-          name: dist-${{ github.sha }}
+          name: ${{ env.ARTIFACT_PREFIX }}-${{ steps.short-sha.outputs.value }}
           path: dist/
           retention-days: ${{ inputs.artifact_retention_days }}
           if-no-files-found: error
@@ -79,7 +87,7 @@ jobs:
       - name: Download build artifact
         uses: actions/download-artifact@v8
         with:
-          name: dist-${{ github.sha }}
+          name: ${{ env.ARTIFACT_PREFIX }}-${{ needs.build-source-code.outputs.short_sha }}
           path: dist/
 
       - name: Set up Docker Buildx
@@ -96,17 +104,13 @@ jobs:
         id: timestamp
         run: echo "value=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
-      - name: Get short commit SHA
-        id: short-sha
-        run: echo "value=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-
       - name: Build and push Docker image
         id: build-push
         uses: docker/build-push-action@v7
         with:
           context: .
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.short-sha.outputs.value }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build-source-code.outputs.short_sha }}
           labels: |
             org.opencontainers.image.created=${{ steps.timestamp.outputs.value }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -115,7 +119,7 @@ jobs:
       - name: Export image metadata
         id: image-meta
         env:
-          PRIMARY_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.short-sha.outputs.value }}
+          PRIMARY_TAG: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build-source-code.outputs.short_sha }}
           DIGEST: ${{ steps.build-push.outputs.digest }}
         run: |
           set -euo pipefail
