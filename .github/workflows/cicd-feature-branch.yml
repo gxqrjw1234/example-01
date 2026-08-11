@@ -1,15 +1,6 @@
-# ============================================================
-# CI-CD Workflow — Python POC 验证与部署
-# ============================================================
-# 执行流程：
-#   - push feature/* -> build-source-code -> build-push-image -> deploy-dev
-#
-# The build implementation is shared through reusable-build.yml.
-# UAT is intentionally not defined in this workflow, so it is not displayed for feature branches.
-
-# ============================================================
-
-name: CI-CD Feature
+name: CICD Feature branch
+run-name: ${{ github.run_id }}
+# run-name: ${{ github.run_number }}
 
 on:
   push:

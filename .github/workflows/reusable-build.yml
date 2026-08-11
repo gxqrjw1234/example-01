@@ -1,10 +1,5 @@
-# ============================================================
-# Reusable Build Workflow — Python POC 构建与镜像发布
-# ============================================================
-# Called by ci-feature.yml and ci-main.yml.
-# ============================================================
-
 name: Reusable Build
+run-name: ${{ github.run_id }}
 
 on:
   workflow_call:
@@ -34,6 +29,7 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  DOCKER_BUILD_RECORD_UPLOAD: false
 
 jobs:
   build-source-code:

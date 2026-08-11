@@ -1,15 +1,6 @@
-# ============================================================
-# CI-CD Workflow — Main branch validation and deployment
-# ============================================================
-# 执行流程：
-#   - push main -> build-source-code -> build-push-image -> deploy-dev -> deploy-uat
-#
-# The build implementation is shared through reusable-build.yml.
-# UAT is defined only in this workflow, so it is visible for main branch runs.
-
-# ============================================================
-
-name: CI-CD Main
+name: CICD Main branch
+run-name: ${{ github.run_id }}
+# run-name: ${{ github.run_number }}
 
 on:
   push:
