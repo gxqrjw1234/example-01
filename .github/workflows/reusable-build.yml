@@ -51,7 +51,7 @@ jobs:
 
       - name: Get short commit SHA
         id: short-sha
-        run: echo "value=${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+        run: echo "value=$(printf '%s' "$GITHUB_SHA" | cut -c1-8)" >> "$GITHUB_OUTPUT"
 
       - name: Build application
         run: python src/build.py
